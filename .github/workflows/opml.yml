@@ -1,0 +1,65 @@
+# This action creates an opml file with all the user starred repositories releases tags
+name: OPML generator
+
+on:
+  # Triggers when pushing to the main branch
+  push:
+    branches:
+      - main
+
+  # Run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+  # run automatically each day
+  schedule:
+    - cron: 0 0 * * *
+
+# Cancel running actions if new commits are added
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+# parameters
+env:
+  USER: ${{ github.actor }}
+  FILE: ${{ github.actor }}_starred_releases.opml
+  TAG: opml
+
+permissions:
+  contents: write # needed to update tag and release
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get the repository files
+        uses: actions/checkout@v4
+    
+      - name: Create file ${{ env.FILE }} for user ${{ env.user }}
+        run: |
+          curl -H "Content-type: application/json" https://api.github.com/users/$USER/starred | jq -r '
+          "<opml version=\"1.0\">
+              <head>
+                  <title>'"$USER's starred repositories' releases"'</title>
+              </head>
+              <body>
+          \( [.[] | "        <outline text=\"\(.full_name)\" type=\"rss\" xmlUrl=\"\(.html_url)/releases.atom\"/>"] | join("\n") )
+              </body>
+          </opml>"
+          ' > $FILE
+
+          echo "::group::$FILE"
+          cat $FILE
+          echo "::endgroup::"
+
+      - name: Update ${{ env.TAG }} tag to current commit
+        run: |
+          git tag --force $TAG
+          git push --force origin tag $TAG
+
+      - name: Upload ${{ env.FILE }} to ${{ env.TAG }} release
+        run: |
+          gh release create $TAG -t "OPML file" -n "$USER's starred repositories' releases" || true
+          gh release upload $TAG $FILE --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
