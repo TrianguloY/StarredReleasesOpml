@@ -72,7 +72,7 @@ jobs:
           
           echo "::group::Get response"
           
-          RESPONSE=$(curl --header 'Content-Type: application/json' --data "$QUERY" https://api.github.com/graphql)
+          RESPONSE=$(curl --header 'Content-Type: application/json' --header 'authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' --data "$QUERY" https://api.github.com/graphql)
           echo "$RESPONSE"
           echo "::endgroup::"
           
