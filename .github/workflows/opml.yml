@@ -22,8 +22,8 @@ concurrency:
 # parameters
 env:
   USER: ${{ github.actor }}
-  FILE: ${{ github.actor }}_starred_releases.opml
-  TAG: opml
+  LIST: "RSS Releases"
+  TAG: rss_releases
 
 permissions:
   contents: write # needed to update tag and release
@@ -34,21 +34,60 @@ jobs:
     steps:
       - name: Get the repository files
         uses: actions/checkout@v4
+
+      - name: Generate dynamic variables
+        run: |
+          echo "FILE=${USER}_starred_${LIST//[^A-Za-z0-9._-]/_}_releases.opml" >> $GITHUB_ENV
     
       - name: Create file ${{ env.FILE }} for user ${{ env.user }}
         run: |
-          curl -H "Content-type: application/json" https://api.github.com/users/$USER/starred | jq -r '
+          
+          echo "::group::Generate query"
+          
+          QUERY=$(
+          cat <<END | jq --null-input --raw-input --slurp '{query:input}'
+          {
+            user(login: "$USER") {
+              lists(first: 100) {
+                nodes {
+                  name
+                  items(first: 100) {
+                    nodes {
+                      ... on Repository {
+                        name
+                        url
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+          END
+          )
+          
+          echo "$QUERY"
+          echo "::endgroup::"
+
+          
+          echo "::group::Get response"
+          
+          RESPONSE=$(curl --header 'Content-Type: application/json' --data "$QUERY" https://api.github.com/graphql)
+          echo "$RESPONSE"
+          echo "::endgroup::"
+          
+          echo "::group::File: $FILE"
+          echo "$RESPONSE" | jq -r '
           "<opml version=\"1.0\">
               <head>
-                  <title>'"$USER's starred repositories' releases"'</title>
+                  <title>'"$USER's starred ($LIST) repositories' releases"'</title>
               </head>
               <body>
-          \( [.[] | "        <outline text=\"\(.full_name)\" type=\"rss\" xmlUrl=\"\(.html_url)/releases.atom\"/>"] | join("\n") )
+          \( [.data.user.lists.nodes[] | select(.name=="'"$LIST"'").items.nodes[] | "        <outline type=\"rss\" text=\"\(.name)\" xmlUrl=\"\(.url)/releases.atom\"/>"] | join("\n") )
               </body>
           </opml>"
           ' > $FILE
-
-          echo "::group::$FILE"
+          
           cat $FILE
           echo "::endgroup::"
 
@@ -59,7 +98,7 @@ jobs:
 
       - name: Upload ${{ env.FILE }} to ${{ env.TAG }} release
         run: |
-          gh release create $TAG -t "OPML file" -n "$USER's starred repositories' releases" || true
+          gh release create $TAG -t "RSS releases file" -n "$USER's starred ($LIST) repositories' releases" || true
           gh release upload $TAG $FILE --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
