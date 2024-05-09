@@ -1,5 +1,5 @@
-# This action creates an opml file with all the user starred repositories releases tags
-name: OPML generator
+# This action creates an opml file with all the user starred (from a list) repositories releases tags
+name: RSS generator
 
 on:
   # Triggers when pushing to the main branch
@@ -39,7 +39,7 @@ jobs:
         run: |
           echo "FILE=${USER}_starred_${LIST//[^A-Za-z0-9._-]/_}_releases.opml" >> $GITHUB_ENV
     
-      - name: Create file ${{ env.FILE }} for user ${{ env.user }}
+      - name: Create file ${{ env.FILE }} for user ${{ env.user }} and list ${{ env.LIST }}
         run: |
           
           echo "::group::Generate query"
@@ -75,6 +75,7 @@ jobs:
           RESPONSE=$(curl --header 'Content-Type: application/json' --header 'authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' --data "$QUERY" https://api.github.com/graphql)
           echo "$RESPONSE"
           echo "::endgroup::"
+
           
           echo "::group::File: $FILE"
           echo "$RESPONSE" | jq -r '
