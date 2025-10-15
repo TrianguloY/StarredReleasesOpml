@@ -35,9 +35,9 @@ jobs:
       actions: write
     env:
       GH_TOKEN: ${{ github.token }}
-      WORKFLOW_REF: ${{ github.workflow_ref }}
     steps:
-      - run: gh workflow enable $(echo "$WORKFLOW_REF" | awk -F '.github/workflows|@' '{print $2}')
+      - run: gh api -X PUT "repos/$GITHUB_REPOSITORY/actions/workflows/$(echo "$GITHUB_WORKFLOW_REF" | awk -F '.github/workflows|@' '{print $2}')/enable"
+
 
 
   build:
