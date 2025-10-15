@@ -29,6 +29,16 @@ permissions:
   contents: write # needed to update tag and release
 
 jobs:
+  workflow-keepalive:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - run: gh workflow enable ${{ github.event.workflow.workflow_id }}
+
+
   build:
     runs-on: ubuntu-latest
     steps:
@@ -103,14 +113,3 @@ jobs:
           gh release upload $TAG $FILE --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-
-
-
-  workflow-keepalive:
-    runs-on: ubuntu-latest
-    permissions:
-      actions: write
-    steps:
-      - run: gh workflow enable ${{ github.event.workflow.workflow_id }}
-
