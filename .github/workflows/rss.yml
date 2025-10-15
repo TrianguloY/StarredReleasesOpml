@@ -103,3 +103,14 @@ jobs:
           gh release upload $TAG $FILE --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+
+
+
+  workflow-keepalive:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - run: gh workflow enable ${{ github.event.workflow.workflow_id }}
+
